@@ -1,17 +1,20 @@
-#ifndef  __SEQKMEANSMANAGER_H
-#define __SEQKMEANSMANAGER_H
+#pragma once
+#ifndef __PARALLELMANAGER_H
+#define __PARALLELMANAGER_H
+
 #include "Cluster.h"
 #include "sequencialAlgorithm.h"
 #include <fstream>
 #include <stdio.h>
 #include <math.h>
+#include <omp.h>
 
-using namespace std;
 
-class Seq_Kmeans_Manager
+
+class parallel_Manager
 {
 
-private :
+private:
 	//arranged by the file input order
 	int numberOfPoints;					// N
 	int numberOfClusters;				// K
@@ -36,38 +39,23 @@ private :
 
 
 public:
-	Seq_Kmeans_Manager(string inputFileName);
-	~Seq_Kmeans_Manager();
+	parallel_Manager(string inputFileName);
+	~parallel_Manager();
 
 
 	/*
-	 *reading the whole file, and setting the parameters, also the points and initiallize the clusters, the function can get
-	 *nothing, then it will use the input file that was passed in the c'tor.
-	 */
+	*reading the whole file, and setting the parameters, also the points and initiallize the clusters, the function can get
+	*nothing, then it will use the input file that was passed in the c'tor.
+	*/
 	void readInputFromFile(string inputFileName = "");
 
-	
+
 	//this method goes through all the points and calculate their new position, according to the time
-	 void calcPointsNewPosition(double time);
+	void calcPointsNewPosition(double time);
 
-	 bool runSequencialAlgorithm();
+	bool runSequencialAlgorithm();
 
-	 friend ostream& operator<< (ostream& out, const Seq_Kmeans_Manager& kmm);
-
-	
-
-
-
-
-
+	friend ostream& operator<< (ostream& out, const parallel_Manager& man);
 };
 
-
-
-
-
-
-
-
-
-#endif // ! __SEQKMEANSMANAGER_H
+#endif // __PARALLELMANAGER_H

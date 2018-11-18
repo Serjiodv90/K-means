@@ -161,6 +161,7 @@ copy "$(CudaToolkitBinDir)\cudart*.dll" "$(OutDir)"</Command>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Cluster.cpp" />
+    <ClCompile Include="parallel_Manager.cpp" />
     <ClCompile Include="seq_Kmeans_Manager.cpp" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="Point.cpp" />
@@ -168,6 +169,7 @@ copy "$(CudaToolkitBinDir)\cudart*.dll" "$(OutDir)"</Command>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Cluster.h" />
+    <ClInclude Include="parallel_Manager.h" />
     <ClInclude Include="seq_Kmeans_Manager.h" />
     <ClInclude Include="Point.h" />
     <ClInclude Include="sequencialAlgorithm.h" />

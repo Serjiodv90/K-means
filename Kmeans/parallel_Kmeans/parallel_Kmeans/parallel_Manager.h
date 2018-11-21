@@ -11,7 +11,7 @@
 
 
 
-class parallel_Manager
+class Parallel_Manager
 {
 
 private:
@@ -30,6 +30,9 @@ private:
 	Point *points = nullptr;
 	Cluster *clusters = nullptr;
 
+	Point::PointAsStruct* pointsToSend;
+	Cluster::ClusterAsStruct* clustersToSend;
+
 	//initiallizing the parameters: N, K, T. dT, LIMIT, QM
 	void initKmeansParamsFromFile(ifstream& inputFile);
 	//reading the points coordinates from the file in the format Xi Yi Zi Vxi Vyi Vzi
@@ -37,10 +40,15 @@ private:
 	//assign the first k points as the centers of the k clusters, for the first time the program runs
 	void initClustersFirstTime();
 
+	//create 2 arrays of structs for points and clusters, to be sent to the slaves from master. 
+	//The creation is from the original points that been read from the file. (clusters, points)
+	void createArrayOfStructs();
+
+
 
 public:
-	parallel_Manager(string inputFileName);
-	~parallel_Manager();
+	Parallel_Manager(string inputFileName);
+	~Parallel_Manager();
 
 
 	/*
@@ -49,13 +57,15 @@ public:
 	*/
 	void readInputFromFile(string inputFileName = "");
 
+	//mpi bcast
+	void masterBroadcastToSlaves();
 
 	//this method goes through all the points and calculate their new position, according to the time
 	void calcPointsNewPosition(double time);
 
 	bool runSequencialAlgorithm();
 
-	friend ostream& operator<< (ostream& out, const parallel_Manager& man);
+	friend ostream& operator<< (ostream& out, const Parallel_Manager& man);
 };
 
 #endif // __PARALLELMANAGER_H

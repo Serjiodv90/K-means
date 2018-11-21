@@ -81,6 +81,17 @@ double Cluster::culculateDiameter()
 	return this->diameter;
 }
 
+Cluster::ClusterAsStruct Cluster::getClusterAsStruct() const
+{
+	Point::Position center = this->centerPoint->getPointPosition();
+	return ClusterAsStruct{center.x, center.y, center.z, diameter};
+}
+
+int Cluster::getNumOfElementsInClusterAsStruct() const
+{
+	return NUM_OF_ELEMENTS_IN_CLUSTER_STRUCT;
+}
+
 ostream & operator<<(ostream & out, const Cluster & cluster)
 {
 	out << *cluster.getClusterCenterPoint();

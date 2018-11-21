@@ -1,5 +1,8 @@
 #include "seq_Kmeans_Manager.h"
+#include "parallel_Manager.h"
 #include <stdio.h>
+#include <iostream>
+#include <string>
 #include <fstream>
 #include <mpi.h>
 #include <omp.h>
@@ -11,6 +14,7 @@ using namespace std;
 
 const string INPUT_FILE_NAME = /*"input3.txt"*/"INPUT_FILE.txt";
 const string OUTPUT_FILE_NAME = "output.txt";
+string INPUT_FILE_PATH;
 
 void main(int argc, char *argv[])
 {
@@ -21,6 +25,10 @@ void main(int argc, char *argv[])
 	MPI_Init(&argc, &argv);
 	MPI_Comm_rank(MPI_COMM_WORLD, &myId);
 	MPI_Comm_size(MPI_COMM_WORLD, &numprocs);
+	
+	//read the file path from the user
+	getFilePathFromUser();
+
 
 	if (numprocs == 1)
 	{
@@ -33,7 +41,7 @@ void main(int argc, char *argv[])
 	{
 		if (myId == MASTER)
 		{
-
+			Parallel_Manager* pm = new Parallel_Manager(INPUT_FILE_NAME);
 		}
 	}
 
@@ -54,9 +62,11 @@ void main(int argc, char *argv[])
 		cout << "clusters position with desired QM were not found!" << endl;
 		outputFile << *seq_kmm;
 	}
-	
+}
 
-
-	
-	
+void getFilePathFromUser()
+{
+	cout << "Please enter the input file path: " << endl;
+	fflush(stdout);
+	getline(cin, INPUT_FILE_PATH);
 }

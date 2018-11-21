@@ -23,6 +23,15 @@ private:
 
 
 public:
+#define NUM_OF_ELEMENTS_IN_CLUSTER_STRUCT 4
+	struct ClusterAsStruct
+	{
+		double center_x;
+		double center_y;
+		double center_z;
+		double diameter;
+	};
+
 	Cluster() {};	//default c'tor for creation of dynamic array of clusters
 	Cluster(int numOfPoints, Point* centerPoint);
 	//~Cluster();
@@ -42,6 +51,10 @@ public:
 	Point* getClusterCenterPoint()	const;
 
 	double culculateDiameter();
+
+	//for MPI implementation
+	ClusterAsStruct getClusterAsStruct()	const;
+	int getNumOfElementsInClusterAsStruct()	const;
 
 	friend ostream& operator<< (ostream& out, const Cluster& cluster);
 

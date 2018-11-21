@@ -1,13 +1,13 @@
 #include "parallel_Manager.h"
 
 
-parallel_Manager::parallel_Manager(string inputFileName) : successQM(DBL_MAX), successTime(DBL_MAX)
+Parallel_Manager::Parallel_Manager(string inputFileName) : successQM(DBL_MAX), successTime(DBL_MAX)
 {
 	this->inputFileName = inputFileName;
 	readInputFromFile();
 }
 
-parallel_Manager::~parallel_Manager()
+Parallel_Manager::~Parallel_Manager()
 {
 	if (this->points)
 		delete[]this->points;
@@ -15,7 +15,7 @@ parallel_Manager::~parallel_Manager()
 		delete[]this->clusters;
 }
 
-void parallel_Manager::readInputFromFile(string inputFileName)
+void Parallel_Manager::readInputFromFile(string inputFileName)
 {
 	if (!inputFileName.empty())
 		this->inputFileName = inputFileName;
@@ -33,13 +33,13 @@ void parallel_Manager::readInputFromFile(string inputFileName)
 }
 
 
-void parallel_Manager::initKmeansParamsFromFile(ifstream& inputFile)
+void Parallel_Manager::initKmeansParamsFromFile(ifstream& inputFile)
 {
 	inputFile >> this->numberOfPoints >> this->numberOfClusters >> this->totalRunTime
 		>> this->velocityCalcTimeInterval >> this->maxIterations >> this->qualityMessure;
 }
 
-void parallel_Manager::initPointsFromFile(ifstream& inputFile)
+void Parallel_Manager::initPointsFromFile(ifstream& inputFile)
 {
 	this->points = new Point[this->numberOfPoints];
 	if (!this->points)
@@ -47,6 +47,7 @@ void parallel_Manager::initPointsFromFile(ifstream& inputFile)
 		cout << "Couldn't allocate points array in kmeansManager.cpp" << endl;
 		return;
 	}
+
 	double pointXPos;
 	double pointYPos;
 	double pointZPos;
@@ -64,11 +65,10 @@ void parallel_Manager::initPointsFromFile(ifstream& inputFile)
 
 }
 
-void parallel_Manager::initClustersFirstTime()
+void Parallel_Manager::initClustersFirstTime()
 {
 
 	this->clusters = new Cluster[this->numberOfClusters];
-	//vector<Cluster> vec(this->numberOfClusters);
 	//check allocation
 	if (!this->clusters)
 	{
@@ -76,6 +76,7 @@ void parallel_Manager::initClustersFirstTime()
 		return;
 	}
 
+	//insert OMP
 	for (int i = 0; i < numberOfClusters; i++)
 	{
 		this->clusters[i].setCenterPoint(this->points + i);
@@ -86,13 +87,26 @@ void parallel_Manager::initClustersFirstTime()
 
 }
 
-/********************************************************************************/
-/*									SEQUENCIAL									*/
-/********************************************************************************/
+void Parallel_Manager::createArrayOfStructs()
+{
+	this->pointsToSend = new Point::PointAsStruct[this->numberOfPoints];
+	this->clustersToSend = new Cluster::ClusterAsStruct[this->numberOfClusters];
+	int i;
+	for (i = 0; i < this->numberOfPoints; i++)
+		this->pointsToSend[i] = this->points[i].getPointAsStruct();
+
+	for (i = 0; i < this->numberOfClusters; i++)
+		this->clustersToSend[i] = this->clusters[i].getClusterAsStruct();
+}
+
+void Parallel_Manager::masterBroadcastToSlaves()
+{
+	createArrayOfStructs();
+
+}
 
 
-
-void parallel_Manager::calcPointsNewPosition(double time)
+void Parallel_Manager::calcPointsNewPosition(double time)
 {
 	if (time > 0.0)
 		for (int i = 0; i < this->numberOfPoints; i++)
@@ -101,7 +115,7 @@ void parallel_Manager::calcPointsNewPosition(double time)
 }
 
 
-bool parallel_Manager::runSequencialAlgorithm()
+bool Parallel_Manager::runSequencialAlgorithm()
 {
 	double currentQM = DBL_MAX;
 	double currentTime = 0.0;
@@ -130,7 +144,7 @@ bool parallel_Manager::runSequencialAlgorithm()
 }
 
 
-ostream & operator<<(ostream & out, const parallel_Manager & man)
+ostream & operator<<(ostream & out, const Parallel_Manager & man)
 {
 	out.precision(6);	//6 digit after decimal point, in 'double' values
 	out << "First occurance: t = " << man.successTime << "\twith q = " << man.successQM << endl;

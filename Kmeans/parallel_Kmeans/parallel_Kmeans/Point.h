@@ -27,6 +27,22 @@ public:
 		double z;
 	};
 
+#define NUM_OF_ELEMENTS_IN_POINT_STRUCT 10
+
+	struct PointAsStruct
+	{
+		double X0;
+		double Y0;
+		double Z0;
+		double current_x;
+		double current_y;
+		double current_z;
+		double velocity_x;
+		double velocity_y;
+		double velocity_z;
+		int containingClusterIndex;
+	};
+
 	Point();
 	Point(Position position, Velocity velocity);
 	// constructor for cluster center point, without velocity
@@ -35,22 +51,30 @@ public:
 	//~Point();
 
 	void setStartPosition(Position position);
+
 	void setPosition(Position position);
+	//return the x,y,z coordinates of the point, as Point::Position structure
+	Position getPointPosition()		const;
+
 	void setVelocity(Velocity velocity);
+
 	void setMinDistanceFromCenterPoint(double distance);
 	double getMinDistanceFromCenterPoint()	const;
 
 	//calculate the position of the point in the next time interval from the current time, and update the current point position
 	void calcNewPositionViaTime(double nextIntervalTime);
 
-	//return the x,y,z coordinates of the point, as Point::Position structure
-	Position getPointPosition()		const;
-
 	void addContainingCluster(Cluster* cluster);
 	Cluster* getContainingCluster()	const;
 
 	//calculate the distance between this point, and point p as input
 	double calculateDistanceFromPoints(const Point* p)	const;
+
+	//for MPI usage
+	void setContainingClusterIndex(int index);
+	int getNumOfElementsInPointStruct()	const;
+	PointAsStruct getPointAsStruct()	const;
+
 
 	friend ostream& operator<< (ostream& out, const Point& point);
 	
@@ -64,17 +88,11 @@ private:
 	Cluster* containingCluster = nullptr;
 	double minDistanceFromCenter;
 
+	//for PointAsStruckt implementation, to create mpi send message
+	int containingClusterIndex;	
+
 	//initial the center point with a big double
 	void setMinDistanceFromCenterToMax();
-
-	////point ;
-	//double xPosition;
-	//double yPosition;
-	//double zPosition;
-	////point velocity
-	//double xVelocity;
-	//double yVelocity;
-	//double zVelocity;
 
 
 

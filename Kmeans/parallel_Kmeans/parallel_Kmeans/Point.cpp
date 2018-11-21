@@ -82,6 +82,24 @@ double Point::calculateDistanceFromPoints(const Point * p)	const
 	return sqrt(xDist + yDist + zDist);
 }
 
+void Point::setContainingClusterIndex(int index)
+{
+	this->containingClusterIndex = index;
+}
+
+int Point::getNumOfElementsInPointStruct() const
+{
+	return NUM_OF_ELEMENTS_IN_POINT_STRUCT;
+}
+
+Point::PointAsStruct Point::getPointAsStruct() const
+{
+	return PointAsStruct{startingPointPosition.x, startingPointPosition.y, startingPointPosition.z,
+						 pointPosition.x, pointPosition .y, pointPosition.z,
+						 pointVelocityposition.x, pointVelocityposition.y, pointVelocityposition.z,
+						 containingClusterIndex};
+}
+
 void Point::setMinDistanceFromCenterToMax()
 {
 	this->minDistanceFromCenter = DBL_MAX;

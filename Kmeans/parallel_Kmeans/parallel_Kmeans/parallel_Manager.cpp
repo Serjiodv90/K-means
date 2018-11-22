@@ -203,14 +203,34 @@ void Parallel_Manager::masterBroadcastToSlavesFirstTime(int numOfProcs, int myId
 
 		scatterPointsToSlavesFirstTime();
 
-		/*from this point the master will work on the */
+		/*from this point the master will work on the original clusters array and points array*/
 	}
 
 }
 
 void Parallel_Manager::createPointArrayFromStruct()
 {
+	this->points = new Point[this->numOfPointsForProc];
+
 	//parallel with OMP!!!!!!!
+	for (int i = 0; i < this->numOfPointsForProc; i++)
+	{
+		this->points[i].setStartPosition(Point::Position{pointsToHandle[i].X0, pointsToHandle[i].Y0, pointsToHandle[i].Z0 });
+		this->points[i].setPosition(Point::Position{ pointsToHandle[i].current_x, pointsToHandle[i].current_y, pointsToHandle[i].current_z });
+		this->points[i].setVelocity(Point::Velocity{ pointsToHandle[i].velocity_x, pointsToHandle[i].velocity_y, pointsToHandle[i].velocity_z });
+	}
+}
+
+void Parallel_Manager::createClusterArrayFromStruct()
+{
+	this->clusters = new Cluster[this->numberOfClusters];
+
+	//parallel with OMP
+	for (int i = 0; i < this->numberOfClusters; i++)
+	{
+		this->clusters[i].setCenterPoint(new Point(Point::Position{ clustersForProc[i].center_x, clustersForProc[i].center_y, clustersForProc[i].center_z }));
+		this->clusters[i].setDiameter(clustersForProc[i].diameter);
+	}
 }
 
 void Parallel_Manager::slavesRecieveStartInformation(int myId)
@@ -231,11 +251,10 @@ void Parallel_Manager::slavesRecieveStartInformation(int myId)
 	MPI_Scatter(this->pointsForProc + startIndexForBroadcast, this->numOfPointsForProc, this->pointStructMPIType,
 		this->pointsToHandle, this->numOfPointsForProc, this->pointStructMPIType, MASTER, MPI_COMM_WORLD);
 
+	createPointArrayFromStruct();
+	createClusterArrayFromStruct();
 	
 	
-
-
-
 }
 
 

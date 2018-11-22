@@ -48,6 +48,7 @@ void main(int argc, char *argv[])
 		{
 			Parallel_Manager* pm = new Parallel_Manager(INPUT_FILE_NAME);
 			createClusterAndPointMPITypes(pm);
+			pm->masterBroadcastToSlavesFirstTime(numprocs, myId);
 		}
 		else
 		{

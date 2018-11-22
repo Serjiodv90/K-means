@@ -81,6 +81,11 @@ double Cluster::culculateDiameter()
 	return this->diameter;
 }
 
+void Cluster::setDiameter(double diameter)
+{
+	this->diameter = diameter;
+}
+
 Cluster::ClusterAsStruct Cluster::getClusterAsStruct() const
 {
 	Point::Position center = this->centerPoint->getPointPosition();

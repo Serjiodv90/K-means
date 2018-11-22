@@ -68,6 +68,7 @@ private:
 	
 	/*collect clusters and points from structs to objects*/
 	void createPointArrayFromStruct();
+	void createClusterArrayFromStruct();
 
 
 

@@ -51,6 +51,7 @@ public:
 	Point* getClusterCenterPoint()	const;
 
 	double culculateDiameter();
+	void setDiameter(double diameter);
 
 	//for MPI implementation
 	ClusterAsStruct getClusterAsStruct()	const;

@@ -8,6 +8,7 @@
 #include <stdio.h>
 #include <math.h>
 #include <omp.h>
+#include <mpi.h>
 
 
 
@@ -15,6 +16,8 @@ class Parallel_Manager
 {
 
 private:
+#define MASTER 0
+
 	//arranged by the file input order
 	int numberOfPoints;					// N
 	int numberOfClusters;				// K
@@ -30,8 +33,7 @@ private:
 	Point *points = nullptr;
 	Cluster *clusters = nullptr;
 
-	Point::PointAsStruct* pointsToSend;
-	Cluster::ClusterAsStruct* clustersToSend;
+	
 
 	//initiallizing the parameters: N, K, T. dT, LIMIT, QM
 	void initKmeansParamsFromFile(ifstream& inputFile);
@@ -40,13 +42,38 @@ private:
 	//assign the first k points as the centers of the k clusters, for the first time the program runs
 	void initClustersFirstTime();
 
+
+	/***************************************************************************************************/
+	/*											PARALLEL WORK										   */			
+	/***************************************************************************************************/
+
+	//MPI
+	MPI_Datatype pointStructMPIType;
+	MPI_Datatype clusterStructMPIType;
+	//arrays for master proc. to obtain and send the data.
+	Point::PointAsStruct* pointsForProc = NULL;
+	Cluster::ClusterAsStruct* clustersForProc = NULL;
+	//arrays for slaves (and master) to work on
+	Point::PointAsStruct* pointsToHandle;
+	Cluster::ClusterAsStruct* clusterToHandle;
+	int numOfProcesses;
+	int numOfPointsForProc;
+
 	//create 2 arrays of structs for points and clusters, to be sent to the slaves from master. 
 	//The creation is from the original points that been read from the file. (clusters, points)
 	void createArrayOfStructs();
 
+	//calculate the amount of the points to send to each slave, also if there is a reminder in dividing the numOfPoints by numOfProc, handle it.
+	void scatterPointsToSlavesFirstTime();
+	
+	/*collect clusters and points from structs to objects*/
+	void createPointArrayFromStruct();
+
+
 
 
 public:
+	Parallel_Manager() {};
 	Parallel_Manager(string inputFileName);
 	~Parallel_Manager();
 
@@ -57,8 +84,11 @@ public:
 	*/
 	void readInputFromFile(string inputFileName = "");
 
-	//mpi bcast
-	void masterBroadcastToSlaves();
+	//mpi bcast - master broadcasts the starting information to the slaves
+	void masterBroadcastToSlavesFirstTime(int numOfProcs, int myId);
+
+	//slaves collent the starting information from the master
+	void slavesRecieveStartInformation(int myId);
 
 	//this method goes through all the points and calculate their new position, according to the time
 	void calcPointsNewPosition(double time);
@@ -66,6 +96,16 @@ public:
 	bool runSequencialAlgorithm();
 
 	friend ostream& operator<< (ostream& out, const Parallel_Manager& man);
+
+	/***************************************************************************************************/
+	/*											PARALLEL WORK										   */
+	/***************************************************************************************************/
+
+	//create MPIDataType of pointsStruct
+	void createPointsMPIDataType();
+	//create MPIDataType of pointsStruct
+	void createClustersMPIDataType();
+
 };
 
 #endif // __PARALLELMANAGER_H

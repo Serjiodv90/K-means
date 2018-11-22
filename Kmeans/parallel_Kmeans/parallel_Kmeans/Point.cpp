@@ -100,6 +100,12 @@ Point::PointAsStruct Point::getPointAsStruct() const
 						 containingClusterIndex};
 }
 
+Point Point::getPointFromStruct(Point::PointAsStruct& point)
+{
+	return Point(Point::Position{ point.current_x, point.current_y, point.current_z },
+				 Point::Velocity{ point.velocity_x, point.velocity_y, point.velocity_z });
+}
+
 void Point::setMinDistanceFromCenterToMax()
 {
 	this->minDistanceFromCenter = DBL_MAX;

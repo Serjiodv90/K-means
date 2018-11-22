@@ -74,6 +74,7 @@ public:
 	void setContainingClusterIndex(int index);
 	int getNumOfElementsInPointStruct()	const;
 	PointAsStruct getPointAsStruct()	const;
+	Point getPointFromStruct(Point::PointAsStruct & point);
 
 
 	friend ostream& operator<< (ostream& out, const Point& point);

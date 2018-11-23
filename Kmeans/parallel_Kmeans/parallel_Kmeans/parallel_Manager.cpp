@@ -91,6 +91,7 @@ void Parallel_Manager::initClustersFirstTime()
 		this->clusters[i].addPoint(this->points + i);
 
 		this->points[i].addContainingCluster(this->clusters + i);
+		this->points[i].setContainingClusterIndex(i);
 	}
 
 }
@@ -184,10 +185,11 @@ void Parallel_Manager::scatterPointsToSlavesFirstTime()
 	}
 }
 
-void Parallel_Manager::masterBroadcastToSlavesFirstTime(int numOfProcs, int myId)
+void Parallel_Manager::master_broadcastToSlavesFirstTime(int numOfProcs, int myId)
 {
 	if (myId == MASTER && numOfProcs > 1)
 	{
+		this->myId = myId;
 		this->numOfProcesses = numOfProcs;
 		createArrayOfStructs();
 		this->numOfPointsForProc = this->numberOfPoints / numOfProcs;
@@ -233,8 +235,10 @@ void Parallel_Manager::createClusterArrayFromStruct()
 	}
 }
 
-void Parallel_Manager::slavesRecieveStartInformation(int myId)
+void Parallel_Manager::slaves_recieveStartInformation(int myId)
 {
+	this->myId;
+
 	//recieve first the number of points for each proc, and create array of point structs.	#bcast1
 	MPI_Bcast(&this->numOfPointsForProc, 1, MPI_INT, MASTER, MPI_COMM_WORLD);
 	this->pointsToHandle = new Point::PointAsStruct[this->numOfPointsForProc];
@@ -251,9 +255,9 @@ void Parallel_Manager::slavesRecieveStartInformation(int myId)
 	MPI_Scatter(this->pointsForProc + startIndexForBroadcast, this->numOfPointsForProc, this->pointStructMPIType,
 		this->pointsToHandle, this->numOfPointsForProc, this->pointStructMPIType, MASTER, MPI_COMM_WORLD);
 
+	//create for each slave the array of points and clusters (objects)
 	createPointArrayFromStruct();
 	createClusterArrayFromStruct();
-	
 	
 }
 
@@ -261,26 +265,35 @@ void Parallel_Manager::slavesRecieveStartInformation(int myId)
 void Parallel_Manager::calcPointsNewPosition(double time)
 {
 	if (time > 0.0)
-		for (int i = 0; i < this->numberOfPoints; i++)
+	{
+		int numOfPointToIterate = this->myId == MASTER ? (this->numberOfPoints % numOfProcesses) : this->numOfPointsForProc;
+		for (int i = 0; i < numOfPointToIterate; i++)
 			points[i].calcNewPositionViaTime(time);
+	}
 
 }
 
 
-bool Parallel_Manager::runSequencialAlgorithm()
+bool Parallel_Manager::runParallelAlgorithm_Master()
 {
 	double currentQM = DBL_MAX;
 	double currentTime = 0.0;
-	SequencialKmeans* sKmeansAlgo = new SequencialKmeans();
+	int masterNumOfPoints = numOfPointsForProc + (numberOfPoints % numOfProcesses);
+	ParallelKmeanAlgorithm* parKmeansAlgo = new ParallelKmeanAlgorithm(masterNumOfPoints, numberOfClusters, points, clusters, maxIterations);
 
 
 	for (int i = 0; (currentTime < totalRunTime) && (currentQM >= qualityMessure); i++)
 	{
 		currentTime = i * velocityCalcTimeInterval;
+
+		//send all the slaves the time to update point location. use send and not broadcast for tags.	#send 1
+		for (int p = 1; p < this->numOfProcesses; p++)
+			MPI_Send(&currentTime, 1, MPI_DOUBLE, p, WORKING_TAG, MPI_COMM_WORLD);
+
 		calcPointsNewPosition(currentTime);
 
 		//step 2 - 4
-		currentQM = sKmeansAlgo->runKmeansSequencial(numberOfClusters, numberOfPoints, points, clusters, maxIterations);
+		currentQM = parKmeansAlgo->runKmeansParallel_Master();
 		//print resultsof each iteration for checking
 		cout << "t = " << currentTime << "\tQM = " << currentQM << "\tDesired QM = " << qualityMessure << endl;
 
@@ -294,6 +307,26 @@ bool Parallel_Manager::runSequencialAlgorithm()
 	else	// no clusters combination to obtain QM less then desired
 		return false;
 }
+
+void Parallel_Manager::runParallelAlgorithm_Slave()
+{
+	double currentTime;
+	MPI_Status status;
+	ParallelKmeanAlgorithm* parKmeansAlgo = new ParallelKmeanAlgorithm(numOfPointsForProc, numberOfClusters, points, clusters, maxIterations);
+
+
+	//recieve the time for calculation for the first time.	#recv1
+	MPI_Recv(&currentTime, 1, MPI_DOUBLE, MASTER, MPI_ANY_TAG, MPI_COMM_WORLD, &status);
+	
+	while (status.MPI_TAG == WORKING_TAG)
+	{
+		calcPointsNewPosition(currentTime);
+		parKmeansAlgo->runKmeansParallel_Slave();
+
+	}
+
+}
+
 
 
 ostream & operator<<(ostream & out, const Parallel_Manager & man)

@@ -30,6 +30,21 @@ void Cluster::setCenterPoint(Point * centerPoint)
 		this->centerPoint = centerPoint;
 }
 
+void Cluster::calcSumOfPointVectors(double& x, double& y, double& z)
+{
+	Point::Position point;
+
+	if (this->clusterPoints.size() > 1)
+	{
+		for (int i = 0; i < clusterPoints.size(); i++)
+		{
+			point = clusterPoints.at(i)->getPointPosition();
+			x += point.x;
+			y += point.y;
+			z += point.z;
+		}
+	}
+}
 
 void Cluster::culculateNewCenterPositionSequencial()
 {
@@ -62,6 +77,8 @@ Point * Cluster::getClusterCenterPoint() const
 {
 	return this->centerPoint;
 }
+
+
 
 double Cluster::culculateDiameter()
 {

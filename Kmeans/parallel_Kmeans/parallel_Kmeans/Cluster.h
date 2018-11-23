@@ -44,7 +44,10 @@ public:
 
 	//sequencial calculation of new cluster center point
 	void culculateNewCenterPositionSequencial();
-	
+
+	//calculate the sum of x,y,z coordinates of all the points of the cluster, putting the x sum to x and so on..
+	void calcSumOfPointVectors(double & x, double & y, double & z);
+
 	//parallel calculation of new cluster center point, via OMP
 	void culculateNewCenterPositionParallel();
 

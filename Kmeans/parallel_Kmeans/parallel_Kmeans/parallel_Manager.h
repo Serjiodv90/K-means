@@ -3,7 +3,7 @@
 #define __PARALLELMANAGER_H
 
 #include "Cluster.h"
-#include "sequencialAlgorithm.h"
+#include "ParallelKmeanAlgorithm.h"
 #include <fstream>
 #include <stdio.h>
 #include <math.h>
@@ -17,6 +17,9 @@ class Parallel_Manager
 
 private:
 #define MASTER 0
+#define WORKING_TAG 0
+#define TERMINATION_TAG 0
+
 
 	//arranged by the file input order
 	int numberOfPoints;					// N
@@ -58,6 +61,7 @@ private:
 	Cluster::ClusterAsStruct* clusterToHandle;
 	int numOfProcesses;
 	int numOfPointsForProc;
+	int myId;
 
 	//create 2 arrays of structs for points and clusters, to be sent to the slaves from master. 
 	//The creation is from the original points that been read from the file. (clusters, points)
@@ -86,15 +90,16 @@ public:
 	void readInputFromFile(string inputFileName = "");
 
 	//mpi bcast - master broadcasts the starting information to the slaves
-	void masterBroadcastToSlavesFirstTime(int numOfProcs, int myId);
+	void master_broadcastToSlavesFirstTime(int numOfProcs, int myId);
 
 	//slaves collent the starting information from the master
-	void slavesRecieveStartInformation(int myId);
+	void slaves_recieveStartInformation(int myId);
 
 	//this method goes through all the points and calculate their new position, according to the time
 	void calcPointsNewPosition(double time);
 
-	bool runSequencialAlgorithm();
+	bool runParallelAlgorithm_Master();
+	void runParallelAlgorithm_Slave();
 
 	friend ostream& operator<< (ostream& out, const Parallel_Manager& man);
 

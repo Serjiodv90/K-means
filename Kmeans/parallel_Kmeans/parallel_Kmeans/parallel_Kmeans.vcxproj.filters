@@ -1,0 +1,21 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <CudaCompile Include="kernel.cu" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="Cluster.cpp" />
+    <ClCompile Include="parallel_Manager.cpp" />
+    <ClCompile Include="seq_Kmeans_Manager.cpp" />
+    <ClCompile Include="main.cpp" />
+    <ClCompile Include="Point.cpp" />
+    <ClCompile Include="sequencialAlgorithm.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="Cluster.h" />
+    <ClInclude Include="parallel_Manager.h" />
+    <ClInclude Include="seq_Kmeans_Manager.h" />
+    <ClInclude Include="Point.h" />
+    <ClInclude Include="sequencialAlgorithm.h" />
+  </ItemGroup>
+</Project>

@@ -48,12 +48,13 @@ void main(int argc, char *argv[])
 		{
 			Parallel_Manager* pm = new Parallel_Manager(INPUT_FILE_NAME);
 			createClusterAndPointMPITypes(pm);
-			pm->masterBroadcastToSlavesFirstTime(numprocs, myId);
+			pm->master_broadcastToSlavesFirstTime(numprocs, myId);
 		}
 		else
 		{
 			Parallel_Manager* slave_pm;
 			createClusterAndPointMPITypes(slave_pm);
+			slave_pm->slaves_recieveStartInformation(myId);
 		}
 	}
 

@@ -4,6 +4,7 @@
 
 #include "Point.h"
 #include "Cluster.h"
+#include <mpi.h>
 
 
 
@@ -12,6 +13,13 @@ class ParallelKmeanAlgorithm
 {
 
 #define POINT_DIMENSION 3
+#define MASTER 0
+
+#define INIT_INFO_TAG	0
+#define WORKING_TAG		1
+#define STOP_KMEANS		2
+#define COMPUTE_QM_TAG	3
+#define TERMINATION_TAG 4
 
 private:
 	Point* points = nullptr;
@@ -21,6 +29,7 @@ private:
 	double limit;
 	bool isContainingClusterChanged = false;	//flag that means, if even one point moved from cluster to cluster, then there were a change during the cluster's center, and the clusters aren't cmplete yet
 	double* clustersCentersSum;
+	int* localClusterNumOfPoints;
 
 	void calculateSumOfClustersCenters(int indexOfCluster);
 
@@ -36,13 +45,13 @@ public:
 	void calcNewDistancesForPoints();
 
 	//sequential claculation and attaching points to clusters
-	void sequentialPointsToCluster();
+	void groupPointsToCluster();
 
-	double calcQualityMessure();
+//	double calcQualityMessure();
 
 
 	//run the kmeans algo, parallel
-	double runKmeansParallel_Master(int totalNumberOfPoints);
+	void runKmeansParallel_Master(int numOfProcs);
 	void runKmeansParallel_Slave();
 
 

@@ -42,8 +42,13 @@ public:
 	void deleteAllPointsFromCluster();
 	void setCenterPoint(Point* centerPoint);
 
+
 	//sequencial calculation of new cluster center point
 	void culculateNewCenterPositionSequencial();
+
+	void updateCenterPointCordinates(double x, double y, double z);
+
+	int getNumOfPoints();
 
 	//calculate the sum of x,y,z coordinates of all the points of the cluster, putting the x sum to x and so on..
 	void calcSumOfPointVectors(double & x, double & y, double & z);

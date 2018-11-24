@@ -49,7 +49,7 @@ void ParallelKmeanAlgorithm::calcNewDistancesForPoints()
 }
 
 //step 2 of the simple kmeans algo
-void ParallelKmeanAlgorithm::sequentialPointsToCluster()
+void ParallelKmeanAlgorithm::groupPointsToCluster()
 {
 	// erase all the previous points from the clusters, before adding the new points
 	for (int i = 0; i < numberOfClusters; i++)
@@ -60,86 +60,215 @@ void ParallelKmeanAlgorithm::sequentialPointsToCluster()
 		points[i].getContainingCluster()->addPoint(points + i);
 }
 
-double ParallelKmeanAlgorithm::calcQualityMessure()
+//double ParallelKmeanAlgorithm::calcQualityMessure()
+//{
+//	double currentQM = 0;
+//	Point* firstClusterCenterPoint, *secondClusterCenterPoint;
+//	double firstClusterDiameter;
+//	double distanceBetweenClustersCenterPoints;
+//
+//	for (int j = 0; j < this->numberOfClusters; j++)
+//	{
+//		firstClusterDiameter = this->clusters[j].culculateDiameter();
+//		firstClusterCenterPoint = this->clusters[j].getClusterCenterPoint();
+//
+//		for (int k = 0; k < this->numberOfClusters; k++)
+//		{
+//			if (k != j)
+//			{
+//				secondClusterCenterPoint = this->clusters[k].getClusterCenterPoint();
+//				distanceBetweenClustersCenterPoints = (firstClusterCenterPoint->calculateDistanceFromPoints(secondClusterCenterPoint));
+//				currentQM += (firstClusterDiameter / distanceBetweenClustersCenterPoints);
+//			}
+//
+//		}
+//	}
+//
+//	currentQM = currentQM / (numberOfClusters * (numberOfClusters - 1));
+//	return currentQM;
+//}
+
+
+void ParallelKmeanAlgorithm::runKmeansParallel_Master(int numOfProcs)
 {
-	double currentQM = 0;
-	Point* firstClusterCenterPoint, *secondClusterCenterPoint;
-	double firstClusterDiameter;
-	double distanceBetweenClustersCenterPoints;
 
-	for (int j = 0; j < this->numberOfClusters; j++)
-	{
-		firstClusterDiameter = this->clusters[j].culculateDiameter();
-		firstClusterCenterPoint = this->clusters[j].getClusterCenterPoint();
+	double* newClusterCenters = new double[numberOfClusters * POINT_DIMENSION];
+	int* localClusterNumOfPoints = new int[numberOfClusters];
+	int* totalClusterNumOfPoints = new int[numberOfClusters];
+	int clusterChangedFlag = 0;		//1 - cluster changed, 0 cluster didn't changed
+	int countClusterChanges = 0;	//count how many procs. haven't changed the containing clusters
 
-		for (int k = 0; k < this->numberOfClusters; k++)
-		{
-			if (k != j)
-			{
-				secondClusterCenterPoint = this->clusters[k].getClusterCenterPoint();
-				distanceBetweenClustersCenterPoints = (firstClusterCenterPoint->calculateDistanceFromPoints(secondClusterCenterPoint));
-				currentQM += (firstClusterDiameter / distanceBetweenClustersCenterPoints);
-			}
-
-		}
-	}
-
-	currentQM = currentQM / (numberOfClusters * (numberOfClusters - 1));
-	return currentQM;
-}
-
-void ParallelKmeanAlgorithm::calculateSumOfClustersCenters(int indexOfCluster)
-{
-	int indexForSumArray = indexOfCluster * POINT_DIMENSION;
-	Point::Position centerPoint = clusters[indexOfCluster].;
-
-	for (int i = 0; i < numberOfPoints; i++)
-	{
-		this->clustersCentersSum[indexForSumArray] += 
-	}
-}
-
-double ParallelKmeanAlgorithm::runKmeansParallel_Master(int totalNumberOfPoints)
-{
-	
 	calcNewDistancesForPoints();	//assign the containing clusters to points in the beginning (good for case that the points don't have containing cluster yet)
 
-	for (int i = 0; i < limit; i++)
+	//cout << "in KMEANS - MASTER, number of points: " << numberOfPoints<<"\tnumber of clusters: " << numberOfClusters << endl;
+	//fflush(stdout);
+
+	for (int i = 0; i < limit && (countClusterChanges != numOfProcs); i++)
 	{
-		sequentialPointsToCluster();
-		//step 3 - recalculate cluster new center
+		cout << "in KMEANS - MASTER, iteration #: " << i << endl;
+		fflush(stdout);
+
+		clusterChangedFlag = 0;
+		countClusterChanges = 0;
+
+		//cout << "MASTER going to: sequentialPointsToCluster \n" << endl;
+		//fflush(stdout);
+		groupPointsToCluster();
+		//cout << "MASTER going to: calcSumOfPointVectors \n" << endl;
+		//fflush(stdout);
+		//step 3 - calculate the sum of point vectors
 		for (int c = 0; c < numberOfClusters; c++)
+		{
 			clusters[c].calcSumOfPointVectors(clustersCentersSum[(c*POINT_DIMENSION)], clustersCentersSum[(c*POINT_DIMENSION) + 1], clustersCentersSum[(c*POINT_DIMENSION) + 2]);
+			localClusterNumOfPoints[c] = clusters[c].getNumOfPoints();
+		}
+
+		//cout << "MASTER reducing #1\n" << endl;
+		//fflush(stdout);
+
+		//collect from all the slaves and the master the sums of each cluster center, and calculate the new centers for ALL the clusters.
+		//#Reduce 1
+		MPI_Reduce(clustersCentersSum, newClusterCenters, numberOfClusters * POINT_DIMENSION, MPI_DOUBLE, MPI_SUM, MASTER, MPI_COMM_WORLD);
+		MPI_Reduce(localClusterNumOfPoints, totalClusterNumOfPoints, numberOfClusters, MPI_INT, MPI_SUM, MASTER, MPI_COMM_WORLD);
+
+		//divide each coordinate by the number of clusters, to get the new centers 
+		for (int j = 0, c = 0; j < numberOfClusters * POINT_DIMENSION, c < numberOfClusters; j += POINT_DIMENSION, c++)
+		{
+			newClusterCenters[j] /= totalClusterNumOfPoints[c];		//X coordinate
+			newClusterCenters[j + 1] /= totalClusterNumOfPoints[c];	//Y coordinate
+			newClusterCenters[j + 2] /= totalClusterNumOfPoints[c];	//Z coordinate
+		}
+
+		/*cout << "MASTER broadcasting new centers #1\n" << endl;
+		fflush(stdout);*/
+
+		//send the new centers to all the slaves.	#bcast1
+		MPI_Bcast(newClusterCenters, numberOfClusters * POINT_DIMENSION, MPI_DOUBLE, MASTER, MPI_COMM_WORLD);
+
+		/*cout << "MASTER updates its own new centers #1\n" << endl;
+		fflush(stdout);*/
+
+		//update the new centers to clusters
+		for (int j = 0; j < numberOfClusters; j++)
+			clusters[j].updateCenterPointCordinates(newClusterCenters[(j * POINT_DIMENSION)], newClusterCenters[(j * POINT_DIMENSION) + 1], newClusterCenters[(j * POINT_DIMENSION) + 2]);
+		
 
 		calcNewDistancesForPoints();	//assign the containing clusters to points after the new centers were calculated
 
 		if (!isContainingClusterChanged)
-			break;
+			clusterChangedFlag = 1;
 		isContainingClusterChanged = false;
+
+		//collect how many clusters reported that the containing clusters didn't changed.	#Reduce 2
+		MPI_Reduce(&clusterChangedFlag, &countClusterChanges, 1, MPI_INT, MPI_SUM, MASTER, MPI_COMM_WORLD);
+
+		/*cout << "MASTER reducing #2 - num of found: " <<countClusterChanges << "\n" << endl;
+		fflush(stdout);*/
+
+		int tmpTag;
+		if (countClusterChanges == numOfProcs)
+			tmpTag = STOP_KMEANS;
+		else
+			tmpTag = WORKING_TAG;
+		//in that case there were no changes in the containing cluster - kmeans done, annonce to all the slaves.
+		for (int p = 1; p < numOfProcs; p++)
+			//#Send 1
+			MPI_Send(&countClusterChanges, 1, MPI_INT, p, tmpTag, MPI_COMM_WORLD);
+
+
 	}
 
-	sequentialPointsToCluster();	//assign the containing clusters to points vectors at the end of the 'limit' iterations (is needed for after the last iteration)
-	return calcQualityMessure();
+	groupPointsToCluster();	//assign the containing clusters to points vectors at the end of the 'limit' iterations (is needed for after the last iteration)
+	
+//	delete[]newClusterCenters;
+
+//	return calcQualityMessure(); 
 }
 
 void ParallelKmeanAlgorithm::runKmeansParallel_Slave()
 {
+	MPI_Status status;
+	status.MPI_TAG = WORKING_TAG;
 
+	localClusterNumOfPoints = new int[numberOfClusters];
+
+	int clusterChangedFlag = 0;		//1 - cluster changed, 0 cluster didn't changed
 	calcNewDistancesForPoints();	//assign the containing clusters to points in the beginning (good for case that the points don't have containing cluster yet)
 
-	for (int i = 0; i < limit; i++)
+	//cout << "in KMEANS - SLAVE, number of points: " << numberOfPoints << "\tnumber of clusters: " << numberOfClusters << endl;
+	//fflush(stdout);
+
+	//cout << "The last point: " << points[numberOfPoints - 1] << endl;
+	/*cout << "The last cluster: " << clusters[numberOfClusters - 1] << endl;
+	fflush(stdout);*/
+
+	while(status.MPI_TAG == WORKING_TAG)
 	{
-		sequentialPointsToCluster();
-		//step 3 - recalculate cluster new center
+		/*cout << "in KMEANS - SLAVE" << endl;
+		fflush(stdout);*/
+
+		clusterChangedFlag = 0;
+
+		/*cout << "SLAVE going to: sequentialPointsToCluster \n" << endl;
+		fflush(stdout);
+*/
+		groupPointsToCluster();
+
+		/*cout << "SLAVE going to: calcSumOfPointVectors \n" << endl;
+		fflush(stdout);*/
+
+		//step 3 - calculate the sum of point vectors
 		for (int c = 0; c < numberOfClusters; c++)
-			clusters[c].culculateNewCenterPositionSequencial();
+		{
+			clusters[c].calcSumOfPointVectors(clustersCentersSum[(c*POINT_DIMENSION)], clustersCentersSum[(c*POINT_DIMENSION) + 1], clustersCentersSum[(c*POINT_DIMENSION) + 2]);
+			localClusterNumOfPoints[c] = clusters[c].getNumOfPoints();
+		}
+		
+		/*cout << "SLAVE reducing #1 \n" << endl;
+		fflush(stdout);*/
+
+		//send to master the sums of the point vectors for each cluster
+		//#Reduce 1
+		MPI_Reduce(clustersCentersSum, clustersCentersSum, numberOfClusters * POINT_DIMENSION, MPI_DOUBLE, MPI_SUM, MASTER, MPI_COMM_WORLD);
+		MPI_Reduce(localClusterNumOfPoints, localClusterNumOfPoints, numberOfClusters, MPI_INT, MPI_SUM, MASTER, MPI_COMM_WORLD);
+
+		/*cout << "SLAVE get bcast #1 \n" << endl;
+		fflush(stdout);*/
+
+		//receive from the master the new centers of clusters.	#bcast 1
+		MPI_Bcast(clustersCentersSum, numberOfClusters * POINT_DIMENSION, MPI_DOUBLE, MASTER, MPI_COMM_WORLD);
+
+		/*cout << "SLAVE going to: updateCenterPointCordinates \n" << endl;
+		fflush(stdout);*/
+
+		//update the new centers to clusters
+		for (int j = 0; j < numberOfClusters; j++)
+			clusters[j].updateCenterPointCordinates(clustersCentersSum[(j * POINT_DIMENSION)], clustersCentersSum[(j * POINT_DIMENSION) + 1], clustersCentersSum[(j * POINT_DIMENSION) + 2]);
+
+		/*cout << "The last cluster: " << clusters[numberOfClusters - 1] << endl;
+		fflush(stdout);*/
 
 		calcNewDistancesForPoints();	//assign the containing clusters to points after the new centers were calculated
 
 		if (!isContainingClusterChanged)
-			break;
+			clusterChangedFlag = 1;
 		isContainingClusterChanged = false;
-	}
 
-	sequentialPointsToCluster();	//assign the containing clusters to points vectors at the end of the 'limit' iterations (is needed for after the last iteration)
+		/*cout << "SLAVE reducing #2 \n" << endl;
+		fflush(stdout);*/
+
+		//#Reduce 2
+		MPI_Reduce(&clusterChangedFlag, &clusterChangedFlag, 1, MPI_INT, MPI_SUM, MASTER, MPI_COMM_WORLD);
+		/*cout << "SLAVE receiving #1 \n" << endl;
+		fflush(stdout);*/
+
+		//#Recv 1
+		MPI_Recv(&clusterChangedFlag, 1, MPI_INT, MASTER, MPI_ANY_TAG, MPI_COMM_WORLD, &status);
+
+		/*cout << "SLAVE recevied status: " << status.MPI_TAG << " and clusterChangedFlag: " << clusterChangedFlag << endl;
+		fflush(stdout);*/
+	}
+	
+	groupPointsToCluster();	//assign the containing clusters to points vectors at the end of the 'limit' iterations (is needed for after the last iteration)
+	
 }

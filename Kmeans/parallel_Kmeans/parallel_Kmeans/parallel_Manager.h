@@ -16,9 +16,7 @@ class Parallel_Manager
 {
 
 private:
-#define MASTER 0
-#define WORKING_TAG 0
-#define TERMINATION_TAG 0
+
 
 
 	//arranged by the file input order
@@ -69,17 +67,34 @@ private:
 
 	//calculate the amount of the points to send to each slave, also if there is a reminder in dividing the numOfPoints by numOfProc, handle it.
 	void scatterPointsToSlavesFirstTime();
+
+	//create array of point structs from point object
+	void createPointArrayOfStructs();
+
+	//create array of cluster structs from Cluster object
+	void createClusterArrayOfStructs();
+
 	
 	/*collect clusters and points from structs to objects*/
 	void createPointArrayFromStruct();
 	void createClusterArrayFromStruct();
 
+	//updating the points' positions in the point struct array, so when you send it to master, it could calculate the QM
+	void updateStructPointPosition();
+
+	//collect all the updated points from the slaves to the pointsForProc array, to compute QM
+	void collectUpdatedPointsFromSlaves();
+
+	double calcQualityMessure();
+
 
 
 
 public:
-	Parallel_Manager() {};
-	Parallel_Manager(string inputFileName);
+	Parallel_Manager(int procId) {
+		this->myId = procId;
+	};
+	Parallel_Manager(string inputFileName, int procId);
 	~Parallel_Manager();
 
 
@@ -94,6 +109,7 @@ public:
 
 	//slaves collent the starting information from the master
 	void slaves_recieveStartInformation(int myId);
+
 
 	//this method goes through all the points and calculate their new position, according to the time
 	void calcPointsNewPosition(double time);
@@ -111,6 +127,7 @@ public:
 	void createPointsMPIDataType();
 	//create MPIDataType of pointsStruct
 	void createClustersMPIDataType();
+
 
 };
 

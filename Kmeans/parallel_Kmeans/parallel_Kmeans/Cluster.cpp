@@ -30,9 +30,22 @@ void Cluster::setCenterPoint(Point * centerPoint)
 		this->centerPoint = centerPoint;
 }
 
+void Cluster::updateCenterPointCordinates(double x, double y, double z)
+{
+	this->centerPoint->setPosition(Point::Position{ x, y, z });
+}
+
+int Cluster::getNumOfPoints()
+{
+	return this->clusterPoints.size();
+}
+
 void Cluster::calcSumOfPointVectors(double& x, double& y, double& z)
 {
 	Point::Position point;
+	x = 0;
+	y = 0;
+	z = 0;
 
 	if (this->clusterPoints.size() > 1)
 	{

@@ -12,56 +12,87 @@ using namespace std;
 #define MASTER 0 
 
 
-const string INPUT_FILE_NAME = /*"input3.txt"*/"INPUT_FILE.txt";
-const string OUTPUT_FILE_NAME = "output.txt";
-string INPUT_FILE_PATH;
+const string INPUT_FILE_NAME = "D:\\parallel computing\\K-means\\Kmeans\\parallel_Kmeans\\parallel_Kmeans\\INPUT_FILE2.txt";
+const string OUTPUT_FILE_NAME = "D:\\parallel computing\\K-means\\Kmeans\\parallel_Kmeans\\parallel_Kmeans\\output2.txt";
 
-
-void getFilePathFromUser();
-void createClusterAndPointMPITypes(Parallel_Manager* );
+void createClusterAndPointMPITypes(Parallel_Manager&);
 
 
 void main(int argc, char *argv[])
 {
 
-	int myId, numprocs;
+	int myId, numprocs, processorNameLen;
+	char processor_name[MPI_MAX_PROCESSOR_NAME];
 	MPI_Status status;
+	Parallel_Manager* pm, *slave_pm;
+
+
 
 	MPI_Init(&argc, &argv);
 	MPI_Comm_rank(MPI_COMM_WORLD, &myId);
 	MPI_Comm_size(MPI_COMM_WORLD, &numprocs);
+	MPI_Get_processor_name(processor_name, &processorNameLen);
+
+
+
+	double startTime, endTime;
+	startTime = MPI_Wtime();
 
 	if (myId == MASTER)
-		//read the file path from the user
-		getFilePathFromUser();
-
-	if (numprocs == 1)
-	{
-		/*
-		implement a menu choosing of sequencial or parallel running for the kmean, when there is only 1 proc.
-		*/
-		//MPI_Abort(MPI_COMM_WORLD, 1);
-	}
+		pm = new Parallel_Manager(INPUT_FILE_NAME, myId);
 	else
+		slave_pm = new Parallel_Manager(myId);
+
+	MPI_Barrier(MPI_COMM_WORLD);
+
+	if (myId == MASTER)
 	{
-		if (myId == MASTER)
+		ofstream outputFile(OUTPUT_FILE_NAME);
+		//Parallel_Manager* pm = new Parallel_Manager(INPUT_FILE_NAME);
+		createClusterAndPointMPITypes(*pm);
+		pm->master_broadcastToSlavesFirstTime(numprocs, myId);
+
+		if (pm->runParallelAlgorithm_Master())
 		{
-			Parallel_Manager* pm = new Parallel_Manager(INPUT_FILE_NAME);
-			createClusterAndPointMPITypes(pm);
-			pm->master_broadcastToSlavesFirstTime(numprocs, myId);
+			cout << "Found clusters position !\n" << endl;
+			outputFile << *pm;
+
 		}
 		else
 		{
-			Parallel_Manager* slave_pm;
-			createClusterAndPointMPITypes(slave_pm);
-			slave_pm->slaves_recieveStartInformation(myId);
+			cout << "Clusters position with desired QM were not found!\n" << endl;
+			outputFile << *pm;
 		}
+		endTime = MPI_Wtime();
+		
+
+	}
+	else
+	{
+		createClusterAndPointMPITypes(*slave_pm);
+		slave_pm->slaves_recieveStartInformation(myId);
+		slave_pm->runParallelAlgorithm_Slave();
 	}
 
 
+	cout <<"pc: "<<processor_name <<" --> Process #: " << myId << " has finished\n" << endl;
+	fflush(stdout);
+
+	if (myId == MASTER)
+	{
+		cout << "The algorithm took: " << endTime - startTime << " seconds.\n" << endl;
+		fflush(stdout);
+	}
 
 
-	Seq_Kmeans_Manager* seq_kmm = new Seq_Kmeans_Manager(INPUT_FILE_NAME);
+	MPI_Finalize();
+
+
+	/************************************************************************************/
+	/*									SEQUENCIAL ALGORITHM RUN						*/
+	/************************************************************************************/
+
+	/*Seq_Kmeans_Manager* seq_kmm = new Seq_Kmeans_Manager(INPUT_FILE_NAME);
 	ofstream outputFile(OUTPUT_FILE_NAME);
 
 	if (seq_kmm->runSequencialAlgorithm())
@@ -74,18 +105,11 @@ void main(int argc, char *argv[])
 	{
 		cout << "clusters position with desired QM were not found!" << endl;
 		outputFile << *seq_kmm;
-	}
+	}*/
 }
 
-void getFilePathFromUser()
+void createClusterAndPointMPITypes(Parallel_Manager& pm)
 {
-	cout << "Please enter the input file path: " << endl;
-	fflush(stdout);
-	getline(cin, INPUT_FILE_PATH);
-}
-
-void createClusterAndPointMPITypes(Parallel_Manager* pm)
-{
-	pm->createPointsMPIDataType();
-	pm->createClustersMPIDataType();
+	pm.createPointsMPIDataType();
+	pm.createClustersMPIDataType();
 }

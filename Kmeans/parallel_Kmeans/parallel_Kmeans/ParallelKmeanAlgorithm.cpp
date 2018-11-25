@@ -18,6 +18,7 @@ void ParallelKmeanAlgorithm::calcNewDistancesForPoints()
 	double calculatedCenter;
 	Cluster* containingCluster;
 
+#pragma omp parallel for private(containingCluster, calculatedCenter)
 	for (int i = 0; i < numberOfPoints; i++)
 	{
 		//calculate the distance of the point - i from the center of its containing cluster (after the cluster has new center).
@@ -52,6 +53,7 @@ void ParallelKmeanAlgorithm::calcNewDistancesForPoints()
 void ParallelKmeanAlgorithm::groupPointsToCluster()
 {
 	// erase all the previous points from the clusters, before adding the new points
+#pragma omp parallel for
 	for (int i = 0; i < numberOfClusters; i++)
 		clusters[i].deleteAllPointsFromCluster();
 
@@ -91,7 +93,7 @@ void ParallelKmeanAlgorithm::groupPointsToCluster()
 
 void ParallelKmeanAlgorithm::runKmeansParallel_Master(int numOfProcs)
 {
-
+	int c, j;
 	double* newClusterCenters = new double[numberOfClusters * POINT_DIMENSION];
 	int* localClusterNumOfPoints = new int[numberOfClusters];
 	int* totalClusterNumOfPoints = new int[numberOfClusters];
@@ -117,7 +119,8 @@ void ParallelKmeanAlgorithm::runKmeansParallel_Master(int numOfProcs)
 		//cout << "MASTER going to: calcSumOfPointVectors \n" << endl;
 		//fflush(stdout);
 		//step 3 - calculate the sum of point vectors
-		for (int c = 0; c < numberOfClusters; c++)
+#pragma omp parallel for
+		for ( c = 0; c < numberOfClusters; c++)
 		{
 			clusters[c].calcSumOfPointVectors(clustersCentersSum[(c*POINT_DIMENSION)], clustersCentersSum[(c*POINT_DIMENSION) + 1], clustersCentersSum[(c*POINT_DIMENSION) + 2]);
 			localClusterNumOfPoints[c] = clusters[c].getNumOfPoints();
@@ -132,7 +135,8 @@ void ParallelKmeanAlgorithm::runKmeansParallel_Master(int numOfProcs)
 		MPI_Reduce(localClusterNumOfPoints, totalClusterNumOfPoints, numberOfClusters, MPI_INT, MPI_SUM, MASTER, MPI_COMM_WORLD);
 
 		//divide each coordinate by the number of clusters, to get the new centers 
-		for (int j = 0, c = 0; j < numberOfClusters * POINT_DIMENSION, c < numberOfClusters; j += POINT_DIMENSION, c++)
+#pragma parallel omp for private(j,c)
+		for (j = 0, c = 0; j < numberOfClusters * POINT_DIMENSION, c < numberOfClusters; j += POINT_DIMENSION, c++)
 		{
 			newClusterCenters[j] /= totalClusterNumOfPoints[c];		//X coordinate
 			newClusterCenters[j + 1] /= totalClusterNumOfPoints[c];	//Y coordinate
@@ -149,7 +153,8 @@ void ParallelKmeanAlgorithm::runKmeansParallel_Master(int numOfProcs)
 		fflush(stdout);*/
 
 		//update the new centers to clusters
-		for (int j = 0; j < numberOfClusters; j++)
+#pragma omp parallel for
+		for (j = 0; j < numberOfClusters; j++)
 			clusters[j].updateCenterPointCordinates(newClusterCenters[(j * POINT_DIMENSION)], newClusterCenters[(j * POINT_DIMENSION) + 1], newClusterCenters[(j * POINT_DIMENSION) + 2]);
 		
 
@@ -171,6 +176,7 @@ void ParallelKmeanAlgorithm::runKmeansParallel_Master(int numOfProcs)
 		else
 			tmpTag = WORKING_TAG;
 		//in that case there were no changes in the containing cluster - kmeans done, annonce to all the slaves.
+#pragma omp parallel for
 		for (int p = 1; p < numOfProcs; p++)
 			//#Send 1
 			MPI_Send(&countClusterChanges, 1, MPI_INT, p, tmpTag, MPI_COMM_WORLD);
@@ -189,6 +195,7 @@ void ParallelKmeanAlgorithm::runKmeansParallel_Slave()
 {
 	MPI_Status status;
 	status.MPI_TAG = WORKING_TAG;
+	int c, j;
 
 	localClusterNumOfPoints = new int[numberOfClusters];
 
@@ -218,7 +225,8 @@ void ParallelKmeanAlgorithm::runKmeansParallel_Slave()
 		fflush(stdout);*/
 
 		//step 3 - calculate the sum of point vectors
-		for (int c = 0; c < numberOfClusters; c++)
+#pragma omp parallel for
+		for (c = 0; c < numberOfClusters; c++)
 		{
 			clusters[c].calcSumOfPointVectors(clustersCentersSum[(c*POINT_DIMENSION)], clustersCentersSum[(c*POINT_DIMENSION) + 1], clustersCentersSum[(c*POINT_DIMENSION) + 2]);
 			localClusterNumOfPoints[c] = clusters[c].getNumOfPoints();
@@ -242,7 +250,8 @@ void ParallelKmeanAlgorithm::runKmeansParallel_Slave()
 		fflush(stdout);*/
 
 		//update the new centers to clusters
-		for (int j = 0; j < numberOfClusters; j++)
+#pragma omp parallel for
+		for (j = 0; j < numberOfClusters; j++)
 			clusters[j].updateCenterPointCordinates(clustersCentersSum[(j * POINT_DIMENSION)], clustersCentersSum[(j * POINT_DIMENSION) + 1], clustersCentersSum[(j * POINT_DIMENSION) + 2]);
 
 		/*cout << "The last cluster: " << clusters[numberOfClusters - 1] << endl;

@@ -87,9 +87,10 @@ void Parallel_Manager::initClustersFirstTime()
 		cout << "Couldn't allocate clusters array in kmeansManager.cpp" << endl;
 		return;
 	}
+	int i;
 
-	//insert OMP
-	for (int i = 0; i < numberOfClusters; i++)
+#pragma omp parallel for 
+	for (i = 0; i < numberOfClusters; i++)
 	{
 		this->clusters[i].setCenterPoint(this->points + i);
 		this->clusters[i].addPoint(this->points + i);
@@ -150,38 +151,40 @@ void Parallel_Manager::createClustersMPIDataType()
 	MPI_Type_commit(&this->clusterStructMPIType);
 }
 
-void Parallel_Manager::createPointArrayOfStructs()
+void Parallel_Manager::createPointArrayOfStructs(Point::PointAsStruct* pointsAsStruct, int numberOfPoints)
 {
-	this->pointsForProc = new Point::PointAsStruct[this->numberOfPoints];
-	for (int i = 0; i < this->numberOfPoints; i++)
-		this->pointsForProc[i] = this->points[i].getPointAsStruct();
+	int i;
+	if (!pointsAsStruct)
+	{
+		this->pointsForProc = new Point::PointAsStruct[this->numberOfPoints];
+
+#pragma omp parallel for /*shared(pointsForProc, points)*/
+		for (i = 0; i < this->numberOfPoints; i++)
+			this->pointsForProc[i] = this->points[i].getPointAsStruct();
+	}
+	else
+	{
+#pragma omp parallel for /*shared(pointsAsStruct, points)*/
+		for (i = 0; i < numberOfPoints; i++)
+			pointsAsStruct[i] = this->points[i].getPointAsStruct();
+	}
 
 }
 
 void Parallel_Manager::createClusterArrayOfStructs()
 {
 	this->clustersForProc = new Cluster::ClusterAsStruct[this->numberOfClusters];
+
+#pragma omp parallel for /*shared(clustersForProc, clusters)*/
 	for (int i = 0; i < this->numberOfClusters; i++)
 		this->clustersForProc[i] = this->clusters[i].getClusterAsStruct();
 
 }
 
-//
-//void Parallel_Manager::createArrayOfStructs()
-//{
-//	this->pointsForProc = new Point::PointAsStruct[this->numberOfPoints];
-//	this->clustersForProc = new Cluster::ClusterAsStruct[this->numberOfClusters];
-//	int i;
-//
-//	for (i = 0; i < this->numberOfPoints; i++)
-//		this->pointsForProc[i] = this->points[i].getPointAsStruct();
-//
-//	for (i = 0; i < this->numberOfClusters; i++)
-//		this->clustersForProc[i] = this->clusters[i].getClusterAsStruct();
-//}
 
 void Parallel_Manager::scatterPointsToSlavesFirstTime()
 {
+	int i;
 	//if the number of points divided by number of processes without a reminder, than spread the array of point structs even for slaves.
 	//otherwise master proc. will handle numOfPointsForProc + reminder, points.
 	int startIndexForBroadcast = (this->numberOfPoints % this->numOfProcesses) == 0 ? 0 : (this->numberOfPoints % this->numOfProcesses);
@@ -189,7 +192,8 @@ void Parallel_Manager::scatterPointsToSlavesFirstTime()
 	this->pointsToHandle = new Point::PointAsStruct[numOfPointsForProc + startIndexForBroadcast];
 
 	//copy the points for master to handle, according to the reminder of (numberOfPoints % numOfProcs)
-	for (int i = 0; i < startIndexForBroadcast; i++)
+#pragma omp parallel for /*shared(pointsToHandle, pointsForProc)*/
+	for (i = 0; i < startIndexForBroadcast; i++)
 		pointsToHandle[i] = pointsForProc[i];
 
 	//scatter points to all processes.	#scatter1
@@ -199,11 +203,13 @@ void Parallel_Manager::scatterPointsToSlavesFirstTime()
 	//if there is a reminder, move each element in the array: pointsToHandle, by reminder value's indeces forward
 	if (startIndexForBroadcast != 0)
 	{
-		for (int i = numOfPointsForProc - 1; i >= 0; i--)
+#pragma omp parallel for
+		for (i = numOfPointsForProc - 1; i >= 0; i--)
 			this->pointsToHandle[i + startIndexForBroadcast] = this->pointsToHandle[i];
 
 		//copy the points from the original point array to the new one
-		for (int i = 0; i < startIndexForBroadcast; i++)
+#pragma omp parallel for 
+		for (i = 0; i < startIndexForBroadcast; i++)
 			this->pointsToHandle[i] = this->pointsForProc[i];
 	}
 }
@@ -228,6 +234,7 @@ void Parallel_Manager::master_broadcastToSlavesFirstTime(int numOfProcs, int myI
 		////broadcast to all of the slaves the same cluster struct array.		#bcast3
 		//MPI_Bcast(this->clustersForProc, this->numberOfClusters, this->clusterStructMPIType, MASTER, MPI_COMM_WORLD);
 
+#pragma omp parallel for
 		for (int p = 1; p < numOfProcesses; p++)
 		{
 			MPI_Send(&this->numOfPointsForProc, 1, MPI_INT, p, INIT_INFO_TAG, MPI_COMM_WORLD);
@@ -244,10 +251,11 @@ void Parallel_Manager::master_broadcastToSlavesFirstTime(int numOfProcs, int myI
 
 void Parallel_Manager::createPointArrayFromStruct()
 {
+	int i;
 	this->points = new Point[this->numOfPointsForProc];
 
-	//parallel with OMP!!!!!!!
-	for (int i = 0; i < this->numOfPointsForProc; i++)
+#pragma omp parallel for 
+	for (i = 0; i < this->numOfPointsForProc; i++)
 	{
 		this->points[i].setStartPosition(Point::Position{pointsToHandle[i].X0, pointsToHandle[i].Y0, pointsToHandle[i].Z0 });
 		this->points[i].setPosition(Point::Position{ pointsToHandle[i].current_x, pointsToHandle[i].current_y, pointsToHandle[i].current_z });
@@ -257,10 +265,11 @@ void Parallel_Manager::createPointArrayFromStruct()
 
 void Parallel_Manager::createClusterArrayFromStruct()
 {
+	int i;
 	this->clusters = new Cluster[this->numberOfClusters];
 
-	//parallel with OMP
-	for (int i = 0; i < this->numberOfClusters; i++)
+#pragma omp parallel for 
+	for (i = 0; i < this->numberOfClusters; i++)
 	{
 		this->clusters[i].setCenterPoint(new Point(Point::Position{ clustersForProc[i].center_x, clustersForProc[i].center_y, clustersForProc[i].center_z }));
 		this->clusters[i].setDiameter(clustersForProc[i].diameter);
@@ -299,13 +308,15 @@ void Parallel_Manager::slaves_recieveStartInformation(int myId)
 
 void Parallel_Manager::collectUpdatedPointsFromSlaves()
 {
+	int i;
 	MPI_Status status;
 	int masterStartIndex = (numberOfPoints % numOfProcesses);
 	for (int i = 1; i < numOfProcesses; i++)
 		MPI_Recv(pointsForProc + masterStartIndex + (numOfPointsForProc * i), numOfPointsForProc, pointStructMPIType,
 			i, COMPUTE_QM_TAG, MPI_COMM_WORLD, &status);
 	
-	for (int i = (masterStartIndex + numOfPointsForProc); i < this->numberOfPoints; i++)
+#pragma omp parallel for 
+	for (i = (masterStartIndex + numOfPointsForProc); i < this->numberOfPoints; i++)
 	{
 		this->points[i].setPosition(Point::Position{ pointsForProc[i].current_x, pointsForProc[i].current_y, pointsForProc[i].current_z });
 		this->points[i].addContainingCluster(&this->clusters[pointsForProc[i].containingClusterIndex]);
@@ -325,6 +336,7 @@ double Parallel_Manager::calcQualityMessure()
 		firstClusterDiameter = this->clusters[j].culculateDiameter();
 		firstClusterCenterPoint = this->clusters[j].getClusterCenterPoint();
 
+#pragma omp parallel for /*private(secondClusterCenterPoint, distanceBetweenClustersCenterPoints) reduction(+: currentQM)*/
 		for (int k = 0; k < this->numberOfClusters; k++)
 		{
 			if (k != j)
@@ -344,12 +356,28 @@ double Parallel_Manager::calcQualityMessure()
 
 void Parallel_Manager::calcPointsNewPosition(double time)
 {
-	if (time > 0.0)
+	int numOfPointToIterate = this->myId == MASTER ? (numOfPointsForProc + (this->numberOfPoints % numOfProcesses)) : this->numOfPointsForProc;
+
+	/*if (time > 0.0)
 	{
-		int numOfPointToIterate = this->myId == MASTER ? (numOfPointsForProc + (this->numberOfPoints % numOfProcesses)) : this->numOfPointsForProc;
 		for (int i = 0; i < numOfPointToIterate; i++)
 			points[i].calcNewPositionViaTime(time);
+	}*/
+
+	if (time > 0.0)
+	{
+		Point::PointAsStruct* pointsToSendToCuda = new Point::PointAsStruct[numOfPointToIterate];
+		createPointArrayOfStructs(pointsToSendToCuda, numOfPointToIterate);
+		calculateNewPointPositionViaTime_Cuda(pointsToSendToCuda, numOfPointToIterate, time);
+
+#pragma omp parallel for 
+		for (int i = 0; i < numOfPointToIterate; i++)
+			this->points[i].setStartPosition(Point::Position{ pointsToSendToCuda[i].current_x, pointsToSendToCuda[i].current_y, pointsToSendToCuda[i].current_z });
+		
+		delete[]pointsToSendToCuda;
+
 	}
+
 
 }
 
@@ -370,6 +398,7 @@ bool Parallel_Manager::runParallelAlgorithm_Master()
 		fflush(stdout);*/
 
 		//send all the slaves the time to update point location. use send and not broadcast for tags.	#send 1
+#pragma omp parallel for
 		for (int p = 1; p < this->numOfProcesses; p++)
 			MPI_Send(&currentTime, 1, MPI_DOUBLE, p, WORKING_TAG, MPI_COMM_WORLD);
 
@@ -390,6 +419,7 @@ bool Parallel_Manager::runParallelAlgorithm_Master()
 	}
 
 	//finished the running, announce to all slave about termination
+#pragma omp parallel for
 	for (int p = 1; p < numOfProcesses; p++)
 		MPI_Send(&currentTime, 1, MPI_DOUBLE, p, TERMINATION_TAG, MPI_COMM_WORLD);
 
@@ -406,6 +436,7 @@ void Parallel_Manager::updateStructPointPosition()
 {
 	int numOfPointToIterate = this->myId == MASTER ? (numOfPointsForProc + (this->numberOfPoints % numOfProcesses)) : this->numOfPointsForProc;
 	
+#pragma omp parallel for 
 	for (int i = 0; i < numOfPointToIterate; i++)
 	{
 		Point::Position p = points[i].getPointPosition();

@@ -4,6 +4,7 @@
 
 #include "Cluster.h"
 #include "ParallelKmeanAlgorithm.h"
+#include "kernel.h"
 #include <fstream>
 #include <stdio.h>
 #include <math.h>
@@ -12,8 +13,11 @@
 
 
 
+
 class Parallel_Manager
 {
+
+#define MAX_THREADS_FOR_CUDA 1000
 
 private:
 
@@ -69,7 +73,7 @@ private:
 	void scatterPointsToSlavesFirstTime();
 
 	//create array of point structs from point object
-	void createPointArrayOfStructs();
+	void createPointArrayOfStructs(Point::PointAsStruct* pointsAsStruct = nullptr, int numberOfPoints = 0);
 
 	//create array of cluster structs from Cluster object
 	void createClusterArrayOfStructs();

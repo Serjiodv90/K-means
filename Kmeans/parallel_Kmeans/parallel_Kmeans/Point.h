@@ -56,6 +56,8 @@ public:
 	//return the x,y,z coordinates of the point, as Point::Position structure
 	Position getPointPosition()		const;
 
+	Point::Position getStartingPoint();
+
 	void setVelocity(Velocity velocity);
 
 	void setMinDistanceFromCenterPoint(double distance);

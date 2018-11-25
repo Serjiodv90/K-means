@@ -23,19 +23,16 @@ void main(int argc, char *argv[])
 
 	int myId, numprocs, processorNameLen;
 	char processor_name[MPI_MAX_PROCESSOR_NAME];
+	double startTime, endTime;
 	MPI_Status status;
 	Parallel_Manager* pm, *slave_pm;
-
-
 
 	MPI_Init(&argc, &argv);
 	MPI_Comm_rank(MPI_COMM_WORLD, &myId);
 	MPI_Comm_size(MPI_COMM_WORLD, &numprocs);
 	MPI_Get_processor_name(processor_name, &processorNameLen);
 
-
-
-	double startTime, endTime;
+	
 	startTime = MPI_Wtime();
 
 	if (myId == MASTER)
@@ -43,6 +40,7 @@ void main(int argc, char *argv[])
 	else
 		slave_pm = new Parallel_Manager(myId);
 
+	//wait until the reading is done
 	MPI_Barrier(MPI_COMM_WORLD);
 
 	if (myId == MASTER)
@@ -53,19 +51,12 @@ void main(int argc, char *argv[])
 		pm->master_broadcastToSlavesFirstTime(numprocs, myId);
 
 		if (pm->runParallelAlgorithm_Master())
-		{
 			cout << "Found clusters position !\n" << endl;
-			outputFile << *pm;
-
-		}
 		else
-		{
 			cout << "Clusters position with desired QM were not found!\n" << endl;
-			outputFile << *pm;
-		}
-		endTime = MPI_Wtime();
-		
 
+		outputFile << *pm;
+		endTime = MPI_Wtime();
 	}
 	else
 	{
@@ -92,7 +83,9 @@ void main(int argc, char *argv[])
 	/*									SEQUENCIAL ALGORITHM RUN						*/
 	/************************************************************************************/
 
-	/*Seq_Kmeans_Manager* seq_kmm = new Seq_Kmeans_Manager(INPUT_FILE_NAME);
+	/*double startTime, endTime;
+	startTime = omp_get_wtime();
+	Seq_Kmeans_Manager* seq_kmm = new Seq_Kmeans_Manager(INPUT_FILE_NAME);
 	ofstream outputFile(OUTPUT_FILE_NAME);
 
 	if (seq_kmm->runSequencialAlgorithm())
@@ -105,7 +98,10 @@ void main(int argc, char *argv[])
 	{
 		cout << "clusters position with desired QM were not found!" << endl;
 		outputFile << *seq_kmm;
-	}*/
+	}
+	endTime = omp_get_wtime();
+	cout << "The algorithm took: " << endTime - startTime << " seconds\n" << endl;*/
+
 }
 
 void createClusterAndPointMPITypes(Parallel_Manager& pm)

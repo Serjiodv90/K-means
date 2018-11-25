@@ -10,6 +10,7 @@
     <ClCompile Include="main.cpp" />
     <ClCompile Include="Point.cpp" />
     <ClCompile Include="sequencialAlgorithm.cpp" />
+    <ClCompile Include="ParallelKmeanAlgorithm.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Cluster.h" />
@@ -17,5 +18,7 @@
     <ClInclude Include="seq_Kmeans_Manager.h" />
     <ClInclude Include="Point.h" />
     <ClInclude Include="sequencialAlgorithm.h" />
+    <ClInclude Include="ParallelKmeanAlgorithm.h" />
+    <ClInclude Include="kernel.h" />
   </ItemGroup>
 </Project>

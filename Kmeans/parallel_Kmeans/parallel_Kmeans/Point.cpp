@@ -61,6 +61,11 @@ Point::Position Point::getPointPosition() const
 	return this->pointPosition;
 }
 
+Point::Position Point::getStartingPoint()
+{
+	return this->startingPointPosition;
+}
+
 void Point::addContainingCluster(Cluster * cluster)
 {
 	if(this->containingCluster != cluster)

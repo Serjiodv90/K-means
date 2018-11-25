@@ -1,4 +1,4 @@
-First occurance: t = 0	with q = 0.714067
+First occurance: t = 0	with q = 0.66996
 Centers of clusters: 
    -407.4528765    134.7467848    184.7596975
     144.2880838   -393.1305236    373.0088816

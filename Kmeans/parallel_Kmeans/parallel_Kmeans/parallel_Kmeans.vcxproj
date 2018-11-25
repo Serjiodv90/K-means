@@ -170,6 +170,7 @@ copy "$(CudaToolkitBinDir)\cudart*.dll" "$(OutDir)"</Command>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Cluster.h" />
+    <ClInclude Include="kernel.h" />
     <ClInclude Include="ParallelKmeanAlgorithm.h" />
     <ClInclude Include="parallel_Manager.h" />
     <ClInclude Include="seq_Kmeans_Manager.h" />
